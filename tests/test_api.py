@@ -64,13 +64,20 @@ def test_form_fields_and_login_detection():
     fields = api._form_fields(page)
     assert fields["__VIEWSTATE"] == "vs"
     assert fields["dnn$ctr376$MainView$tpnlLoans$ucLoansView$grdViewLoans$ctl02$CopyId"] == "M000000001"
-    assert not api.is_login_page(page)
+    assert api.is_logged_in(page)
+
+    # A password input alone (e.g. "change password") must not count as logged out.
+    page.form.append(BeautifulSoup('<input name="x$txtPassword" type="password" />', "html.parser"))
+    assert api.is_logged_in(page)
 
     login = BeautifulSoup(
-        '<input name="dnn$ctr375$Login$Login_COP$txtPassword" type="password" />',
+        '<input name="dnn$ctr375$Login$Login_COP$txtPassword" type="password" />'
+        '<div class="dnnFormMessage dnnFormValidationSummary">Die Ausweisnummer oder '
+        'E-Mailadresse ist unbekannt oder das Passwort ist falsch.</div>',
         "html.parser",
     )
-    assert api.is_login_page(login)
+    assert not api.is_logged_in(login)
+    assert api.login_error(login).startswith("Die Ausweisnummer")
 
 
 def test_parse_date():

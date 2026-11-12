@@ -146,9 +146,24 @@ def parse_cover_sources(raw: str | None) -> list[tuple[str, str]]:
     return sources
 
 
-def is_login_page(soup: BeautifulSoup) -> bool:
-    """Return True if the page shows the login form instead of the account."""
-    return soup.find("input", attrs={"name": re.compile(r"\$txtPassword$")}) is not None
+def is_logged_in(soup: BeautifulSoup) -> bool:
+    """Return True if the page shows the patron account.
+
+    Checked via the account's own fields: the logged-in page can still
+    contain password inputs (e.g. for changing the password).
+    """
+    return (
+        soup.find("input", attrs={"name": re.compile(r"\$PatronRndId$")}) is not None
+        or soup.find("table", id=re.compile(r"grdViewLoans$")) is not None
+    )
+
+
+def login_error(soup: BeautifulSoup) -> str | None:
+    """Return the validation message the login form shows, if any."""
+    summary = soup.select_one(".dnnFormValidationSummary, .dnnFormError")
+    if summary is None:
+        return None
+    return " ".join(summary.get_text(" ", strip=True).split()) or None
 
 
 def parse_loans(soup: BeautifulSoup) -> list[Loan]:
@@ -342,17 +357,21 @@ class StadtbuechereiClient:
                 login_button: "Anmeldung",
             },
         )
-        if is_login_page(soup):
-            raise AuthenticationError("Login rejected")
-        if soup.find("table", id=re.compile(r"grdViewLoans$")) is None:
-            # Some DNN setups redirect to the start page after login.
-            soup = await self._get(ACCOUNT_PATH)
-        return soup
+        if is_logged_in(soup):
+            return soup
+        if message := login_error(soup):
+            raise AuthenticationError(message)
+        # DNN may answer the login with another page; the session cookie decides.
+        soup = await self._get(ACCOUNT_PATH)
+        if is_logged_in(soup):
+            return soup
+        title = soup.title.get_text(strip=True) if soup.title else "?"
+        raise LibraryError(f"Not logged in after login, got page '{title}'")
 
     async def _account_page(self) -> BeautifulSoup:
         """Return the account page, logging in first if the session expired."""
         soup = await self._get(ACCOUNT_PATH)
-        if is_login_page(soup):
+        if not is_logged_in(soup):
             soup = await self._login(soup)
         rnd = soup.find("input", attrs={"name": re.compile(r"\$PatronRndId$")})
         self._patron_rnd_id = rnd.get("value") if rnd else None
@@ -466,7 +485,7 @@ class StadtbuechereiClient:
                 raise RenewalError(f"No renewal link for {loan.title}")
 
             soup = await self._postback(soup, {"__EVENTTARGET": loan.renew_target})
-            if is_login_page(soup):
+            if not is_logged_in(soup):
                 raise LibraryError("Session expired during renewal")
 
             confirm = soup.find(
