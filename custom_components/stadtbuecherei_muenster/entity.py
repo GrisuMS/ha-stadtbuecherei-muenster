@@ -5,6 +5,7 @@ from __future__ import annotations
 from collections.abc import Callable, Iterable
 
 from homeassistant.core import callback
+from homeassistant.helpers import area_registry as ar, device_registry as dr
 from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.entity import Entity
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
@@ -23,6 +24,22 @@ def account_device_info(entry: StadtbuechereiConfigEntry) -> DeviceInfo:
         manufacturer=MANUFACTURER,
         configuration_url="https://open.stadt-muenster.de/Kundenkonto",
     )
+
+
+def _account_area_name(coordinator: StadtbuechereiCoordinator) -> str | None:
+    """Area of the account device, so newly borrowed media land in the same area.
+
+    Home Assistant applies a suggested area only when it creates a device,
+    so media the user has moved elsewhere stay where they are.
+    """
+    hass = coordinator.hass
+    device = dr.async_get(hass).async_get_device(
+        identifiers={(DOMAIN, coordinator.config_entry.entry_id)}
+    )
+    if device is None or device.area_id is None:
+        return None
+    area = ar.async_get(hass).async_get_area(device.area_id)
+    return area.name if area else None
 
 
 class AccountEntity(CoordinatorEntity[StadtbuechereiCoordinator]):
@@ -59,6 +76,7 @@ class LoanEntity(CoordinatorEntity[StadtbuechereiCoordinator]):
             model=loan.media_group,
             configuration_url=loan.catalogue_url,
             via_device=(DOMAIN, entry.entry_id),
+            suggested_area=_account_area_name(coordinator),
         )
 
     @property

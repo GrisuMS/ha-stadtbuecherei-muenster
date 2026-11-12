@@ -39,6 +39,8 @@ Pro ausgeliehenem Medium ein eigenes Gerät (Name = Titel, Modell = Mediengruppe
 | `button.<titel>_verlangern` | Verlängert das Medium |
 
 Geräte von zurückgegebenen Medien werden beim nächsten Abruf automatisch entfernt.
+Neu ausgeliehene Medien landen automatisch im Bereich des Ausweis-Geräts. Ein Medium, das
+du von Hand in einen anderen Bereich verschiebst, bleibt dort.
 Das Konto wird alle 3 Stunden abgerufen; nach einer Verlängerung sofort.
 
 ## Beispiel: Erinnerung vor Ablauf
