@@ -1,0 +1,74 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Stadtbücherei Münster",
+        "description": "Login for the online catalogue at open.stadt-muenster.de.",
+        "data": {
+          "username": "Library card number",
+          "password": "Password"
+        }
+      },
+      "reauth_confirm": {
+        "title": "Re-authenticate",
+        "description": "The library rejected the stored password.",
+        "data": {
+          "password": "Password"
+        }
+      }
+    },
+    "error": {
+      "invalid_auth": "Card number or password is wrong.",
+      "cannot_connect": "The library catalogue cannot be reached."
+    },
+    "abort": {
+      "already_configured": "This library card is already configured.",
+      "reauth_successful": "Re-authentication was successful."
+    }
+  },
+  "entity": {
+    "sensor": {
+      "loans": {
+        "name": "Loans"
+      },
+      "next_due": {
+        "name": "Next due date"
+      },
+      "due_date": {
+        "name": "Due date"
+      },
+      "reservations": {
+        "name": "Reservations"
+      },
+      "ready_for_pickup": {
+        "name": "Ready for pickup"
+      },
+      "fees": {
+        "name": "Fees"
+      }
+    },
+    "binary_sensor": {
+      "renewable": {
+        "name": "Renewable"
+      }
+    },
+    "button": {
+      "renew": {
+        "name": "Renew"
+      }
+    },
+    "image": {
+      "cover": {
+        "name": "Cover"
+      }
+    }
+  },
+  "exceptions": {
+    "not_renewable": {
+      "message": "\"{title}\" cannot be renewed: {reason}"
+    },
+    "renew_failed": {
+      "message": "Renewing \"{title}\" failed: {error}"
+    }
+  }
+}

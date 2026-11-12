@@ -1,0 +1,16 @@
+{
+  "domain": "stadtbuecherei_muenster",
+  "name": "Stadtbücherei Münster",
+  "codeowners": [
+    "@GrisuMS"
+  ],
+  "config_flow": true,
+  "documentation": "https://github.com/GrisuMS/ha-stadtbuecherei-muenster",
+  "integration_type": "service",
+  "iot_class": "cloud_polling",
+  "issue_tracker": "https://github.com/GrisuMS/ha-stadtbuecherei-muenster/issues",
+  "requirements": [
+    "beautifulsoup4>=4.12"
+  ],
+  "version": "0.1.0"
+}

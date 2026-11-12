@@ -1,0 +1,74 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Stadtbücherei Münster",
+        "description": "Zugangsdaten für den Online-Katalog unter open.stadt-muenster.de.",
+        "data": {
+          "username": "Ausweisnummer",
+          "password": "Passwort"
+        }
+      },
+      "reauth_confirm": {
+        "title": "Erneut anmelden",
+        "description": "Die Bücherei hat das gespeicherte Passwort abgelehnt.",
+        "data": {
+          "password": "Passwort"
+        }
+      }
+    },
+    "error": {
+      "invalid_auth": "Ausweisnummer oder Passwort ist falsch.",
+      "cannot_connect": "Der Online-Katalog ist nicht erreichbar."
+    },
+    "abort": {
+      "already_configured": "Dieser Ausweis ist bereits eingerichtet.",
+      "reauth_successful": "Erneute Anmeldung erfolgreich."
+    }
+  },
+  "entity": {
+    "sensor": {
+      "loans": {
+        "name": "Ausleihen"
+      },
+      "next_due": {
+        "name": "Nächste Frist"
+      },
+      "due_date": {
+        "name": "Aktuelle Frist"
+      },
+      "reservations": {
+        "name": "Vormerkungen"
+      },
+      "ready_for_pickup": {
+        "name": "Abholbereit"
+      },
+      "fees": {
+        "name": "Gebühren"
+      }
+    },
+    "binary_sensor": {
+      "renewable": {
+        "name": "Verlängerbar"
+      }
+    },
+    "button": {
+      "renew": {
+        "name": "Verlängern"
+      }
+    },
+    "image": {
+      "cover": {
+        "name": "Cover"
+      }
+    }
+  },
+  "exceptions": {
+    "not_renewable": {
+      "message": "„{title}“ kann nicht verlängert werden: {reason}"
+    },
+    "renew_failed": {
+      "message": "Verlängerung von „{title}“ fehlgeschlagen: {error}"
+    }
+  }
+}
