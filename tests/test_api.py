@@ -125,3 +125,18 @@ def test_diagnose_describes_page_without_values():
     )
     text = api.StadtbuechereiClient._diagnose(login)
     assert "login form=True" in text and "geheim" not in text
+
+
+def test_describe_set_cookies_hides_values():
+    from multidict import CIMultiDict
+
+    headers = CIMultiDict()
+    headers.add("Set-Cookie", ".DOTNETNUKE=ABCDEF0123; expires=Fri, 13-Nov-2026 10:00:00 GMT; path=/; secure; HttpOnly; SameSite=Lax")
+    headers.add("Set-Cookie", "authentication=; expires=Mon, 01-Jan-1900 00:00:00 GMT; path=/")
+    resp = types.SimpleNamespace(headers=headers)
+    described = api._describe_set_cookies(resp)
+    assert described == [
+        ".DOTNETNUKE(len=10; expires 2026,path,secure,httponly,samesite)",
+        "authentication(len=0; expires 1900,path)",
+    ]
+    assert "ABCDEF" not in " ".join(described)

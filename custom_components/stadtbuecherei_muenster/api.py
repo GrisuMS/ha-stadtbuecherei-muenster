@@ -290,6 +290,22 @@ def parse_fees(soup: BeautifulSoup) -> list[Fee]:
     ]
 
 
+def _describe_set_cookies(resp: aiohttp.ClientResponse) -> list[str]:
+    """Describe Set-Cookie headers for the log: names and attributes, no values."""
+    described = []
+    for header in resp.headers.getall("Set-Cookie", []):
+        name_value, *attrs = (part.strip() for part in header.split(";"))
+        name, _, value = name_value.partition("=")
+        attr_names = []
+        for attr in filter(None, attrs):
+            key = attr.split("=", 1)[0].lower()
+            if key == "expires" and (year := re.search(r"\d{4}", attr)):
+                key = f"expires {year.group(0)}"
+            attr_names.append(key)
+        described.append(f"{name}(len={len(value)}; {','.join(attr_names)})")
+    return described
+
+
 def _form_fields(soup: BeautifulSoup) -> dict[str, str]:
     """Collect the hidden state fields a postback has to send back."""
     form = soup.find("form", id="Form") or soup
@@ -323,7 +339,6 @@ class StadtbuechereiClient:
         self._password = password
         self._lock = asyncio.Lock()
         self._patron_rnd_id: str | None = None
-        self._last_response = ""
 
     async def _get(self, path: str) -> BeautifulSoup:
         async with self._session.get(urljoin(BASE_URL, path)) as resp:
@@ -340,14 +355,6 @@ class StadtbuechereiClient:
             urljoin(BASE_URL, ACCOUNT_PATH), data=payload
         ) as resp:
             resp.raise_for_status()
-            self._last_response = "POST %s -> %s %s" % (
-                ACCOUNT_PATH,
-                " -> ".join(
-                    f"{r.status} {r.headers.get('Location', '')}" for r in resp.history
-                )
-                or "no redirect",
-                f"{resp.status} {resp.url.path}",
-            )
             return BeautifulSoup(await resp.text(), "html.parser")
 
     async def _login(self, login_page: BeautifulSoup) -> BeautifulSoup:
@@ -357,28 +364,45 @@ class StadtbuechereiClient:
                 raise LibraryError(f"Login form field {suffix} not found")
             return el["name"]
 
-        login_button = field("cmdLogin")
-        soup = await self._postback(
-            login_page,
+        payload = {"__EVENTTARGET": "", "__EVENTARGUMENT": ""}
+        payload.update(_form_fields(login_page))
+        payload.update(
             {
                 field("txtUsername"): self._username,
                 field("txtPassword"): self._password,
-                login_button: "Anmeldung",
-            },
+                field("cmdLogin"): "Anmeldung",
+            }
         )
+
+        # Follow redirects by hand to record which cookies each hop sets.
+        hops: list[str] = []
+        method, url, data = "POST", urljoin(BASE_URL, ACCOUNT_PATH), payload
+        for _ in range(6):
+            async with self._session.request(
+                method, url, data=data, allow_redirects=False
+            ) as resp:
+                hops.append(
+                    f"{method} {resp.url.path}?{resp.url.query_string} -> {resp.status}, "
+                    f"set-cookie {_describe_set_cookies(resp)}, "
+                    f"jar {sorted(c.key for c in self._session.cookie_jar)}"
+                )
+                location = resp.headers.get("Location")
+                if resp.status in (301, 302, 303, 307) and location:
+                    method, url, data = "GET", urljoin(str(resp.url), location), None
+                    continue
+                resp.raise_for_status()
+                soup = BeautifulSoup(await resp.text(), "html.parser")
+                break
+        else:
+            raise LibraryError(f"Too many redirects after login: {hops}")
+
         if is_logged_in(soup):
             return soup
         if message := login_error(soup):
             raise AuthenticationError(message)
-        post_diag = self._diagnose(soup)
-        # DNN may answer the login with another page; the session cookie decides.
-        soup = await self._get(ACCOUNT_PATH)
-        if is_logged_in(soup):
-            return soup
         raise LibraryError(
-            f"Not logged in after login. {self._last_response}; response: {post_diag}; "
-            f"account page afterwards: {self._diagnose(soup)}; "
-            f"cookies: {sorted(c.key for c in self._session.cookie_jar)}"
+            f"Not logged in after login. Hops: {' | '.join(hops)}; "
+            f"final page: {self._diagnose(soup)}"
         )
 
     @staticmethod
