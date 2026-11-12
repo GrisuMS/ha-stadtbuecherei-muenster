@@ -91,6 +91,9 @@ Der Katalog hat keine offizielle API. Die Integration verhält sich wie der Brow
 
 Ändert die Bücherei ihre Seite, kann die Integration brechen.
 
+Logo und Icon liegen in `brand/` und werden ab Home Assistant 2026.3 angezeigt. Das Logo
+gehört der Stadtbücherei Münster; die Integration ist kein offizielles Angebot der Bücherei.
+
 ## Tests
 
 ```sh
