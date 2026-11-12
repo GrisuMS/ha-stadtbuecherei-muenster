@@ -43,23 +43,41 @@ Neu ausgeliehene Medien landen automatisch im Bereich des Ausweis-Geräts. Ein M
 du von Hand in einen anderen Bereich verschiebst, bleibt dort.
 Das Konto wird alle 3 Stunden abgerufen; nach einer Verlängerung sofort.
 
-## Beispiel: Erinnerung vor Ablauf
+## Beispiel: Erinnerung eine Woche vor Ablauf
+
+Prüft jeden Morgen alle Fristen-Sensoren der Integration, auch die von neu ausgeliehenen
+Medien, und meldet sich nur, wenn etwas in genau 7 Tagen fällig ist. `notify.sebastian`
+durch das eigene Notify-Ziel ersetzen (z. B. einen Telegram-Chat).
 
 ```yaml
-automation:
-  - alias: "Bücherei: Rückgabe in 3 Tagen"
-    trigger:
-      - platform: time
-        at: "18:00:00"
-    condition:
-      - condition: template
-        value_template: >
-          {{ states('sensor.stadtbucherei_munster_ausweis_xxx_nachste_frist') not in ['unknown', 'unavailable']
-             and (as_datetime(states('sensor.stadtbucherei_munster_ausweis_xxx_nachste_frist')).date() - now().date()).days <= 3 }}
-    action:
-      - service: notify.notify
-        data:
-          message: "Bücherei-Medien sind bald fällig."
+alias: "Stadtbücherei: Erinnerung eine Woche vor Rückgabe"
+triggers:
+  - trigger: time
+    at: "09:00:00"
+variables:
+  faellig: >-
+    {% set ns = namespace(items=[]) %}
+    {% for e in integration_entities('stadtbuecherei_muenster')
+       if e.startswith('sensor.') and state_attr(e, 'copy_id')
+       and states(e) not in ['unknown', 'unavailable'] %}
+      {% if (as_datetime(states(e)).date() - now().date()).days == 7 %}
+        {% set ns.items = ns.items + ['• ' ~ state_attr(e, 'title')
+           ~ (' (verlängerbar)' if state_attr(e, 'renewable') else ' (nicht verlängerbar)')] %}
+      {% endif %}
+    {% endfor %}
+    {{ ns.items }}
+conditions:
+  - condition: template
+    value_template: "{{ faellig | count > 0 }}"
+actions:
+  - action: notify.send_message
+    target:
+      entity_id: notify.sebastian
+    data:
+      title: "📚 Stadtbücherei"
+      message: >-
+        In einer Woche ({{ (now() + timedelta(days=7)).strftime('%d.%m.%Y') }}) fällig:
+        {{ faellig | join('\n') }}
 ```
 
 ## Wie es funktioniert

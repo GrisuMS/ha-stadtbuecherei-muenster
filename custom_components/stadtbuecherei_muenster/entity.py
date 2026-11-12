@@ -33,8 +33,9 @@ def _account_area_name(coordinator: StadtbuechereiCoordinator) -> str | None:
     so media the user has moved elsewhere stay where they are.
     """
     hass = coordinator.hass
-    device = dr.async_get(hass).async_get_device(
-        identifiers={(DOMAIN, coordinator.config_entry.entry_id)}
+    entry_id = coordinator.config_entry.entry_id
+    device = dr.async_get(hass).async_get_device_by_identifier(
+        (DOMAIN, entry_id), entry_id
     )
     if device is None or device.area_id is None:
         return None

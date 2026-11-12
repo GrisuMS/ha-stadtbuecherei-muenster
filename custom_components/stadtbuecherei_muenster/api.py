@@ -36,7 +36,7 @@ EXTENDABLE_RESOURCE_FILE = (
 # is replaced per request, as its aiohttp helper recommends for integrations.
 HEADERS = {
     "User-Agent": (
-        "ha-stadtbuecherei-muenster/0.1.6 "
+        "ha-stadtbuecherei-muenster/0.1.7 "
         "(+https://github.com/GrisuMS/ha-stadtbuecherei-muenster)"
     ),
     "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
