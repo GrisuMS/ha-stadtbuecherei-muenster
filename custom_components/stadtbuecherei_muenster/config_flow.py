@@ -10,8 +10,8 @@ import aiohttp
 import voluptuous as vol
 from homeassistant.config_entries import ConfigFlow, ConfigFlowResult
 from homeassistant.const import CONF_PASSWORD, CONF_USERNAME
-from homeassistant.helpers.aiohttp_client import async_create_clientsession
 
+from . import create_session
 from .api import AuthenticationError, LibraryError, StadtbuechereiClient
 from .const import DOMAIN
 
@@ -32,9 +32,7 @@ class StadtbuechereiConfigFlow(ConfigFlow, domain=DOMAIN):
 
     async def _validate(self, username: str, password: str) -> str | None:
         """Return an error key, or None if the login works."""
-        client = StadtbuechereiClient(
-            async_create_clientsession(self.hass), username, password
-        )
+        client = StadtbuechereiClient(create_session(self.hass), username, password)
         try:
             await client.async_validate_login()
         except AuthenticationError:
