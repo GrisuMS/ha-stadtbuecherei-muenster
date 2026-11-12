@@ -32,6 +32,22 @@ EXTENDABLE_RESOURCE_FILE = (
     "App_LocalResources/PatronAccountModule.resx"
 )
 
+# Identify honestly as this integration; Home Assistant's default user agent
+# is replaced per request, as its aiohttp helper recommends for integrations.
+HEADERS = {
+    "User-Agent": (
+        "ha-stadtbuecherei-muenster/0.1.4 "
+        "(+https://github.com/GrisuMS/ha-stadtbuecherei-muenster)"
+    ),
+    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+    "Accept-Language": "de-DE,de;q=0.9",
+}
+JSON_HEADERS = {
+    **HEADERS,
+    "Accept": "application/json",
+    "Content-Type": "application/json;charset=utf-8",
+}
+
 _POSTBACK_RE = re.compile(r"__doPostBack\('([^']+)','([^']*)'\)")
 _DATE_RE = re.compile(r"(\d{2})\.(\d{2})\.(\d{4})")
 
@@ -341,7 +357,7 @@ class StadtbuechereiClient:
         self._patron_rnd_id: str | None = None
 
     async def _get(self, path: str) -> BeautifulSoup:
-        async with self._session.get(urljoin(BASE_URL, path)) as resp:
+        async with self._session.get(urljoin(BASE_URL, path), headers=HEADERS) as resp:
             resp.raise_for_status()
             return BeautifulSoup(await resp.text(), "html.parser")
 
@@ -352,7 +368,7 @@ class StadtbuechereiClient:
         payload.update(_form_fields(soup))
         payload.update(data)
         async with self._session.post(
-            urljoin(BASE_URL, ACCOUNT_PATH), data=payload
+            urljoin(BASE_URL, ACCOUNT_PATH), data=payload, headers=HEADERS
         ) as resp:
             resp.raise_for_status()
             return BeautifulSoup(await resp.text(), "html.parser")
@@ -379,7 +395,7 @@ class StadtbuechereiClient:
         method, url, data = "POST", urljoin(BASE_URL, ACCOUNT_PATH), payload
         for _ in range(6):
             async with self._session.request(
-                method, url, data=data, allow_redirects=False
+                method, url, data=data, headers=HEADERS, allow_redirects=False
             ) as resp:
                 hops.append(
                     f"{method} {resp.url.path}?{resp.url.query_string} -> {resp.status}, "
@@ -459,7 +475,7 @@ class StadtbuechereiClient:
             async with self._session.post(
                 urljoin(BASE_URL, EXTENDABLE_SERVICE),
                 data=body,
-                headers={"Content-Type": "application/json;charset=utf-8"},
+                headers=JSON_HEADERS,
             ) as resp:
                 resp.raise_for_status()
                 result = await resp.json(content_type=None)
@@ -497,7 +513,7 @@ class StadtbuechereiClient:
         async with self._session.post(
             urljoin(BASE_URL, url),
             data="{'data':'%s'}" % data,
-            headers={"Content-Type": "application/json;charset=utf-8"},
+            headers=JSON_HEADERS,
         ) as resp:
             resp.raise_for_status()
             result = await resp.json(content_type=None)
@@ -511,7 +527,7 @@ class StadtbuechereiClient:
         return await self._cover_from_url(cover_url)
 
     async def _cover_from_url(self, url: str) -> tuple[bytes, str] | None:
-        async with self._session.get(urljoin(BASE_URL, url)) as resp:
+        async with self._session.get(urljoin(BASE_URL, url), headers=HEADERS) as resp:
             if resp.status != 200 or not resp.content_type.startswith("image/"):
                 return None
             content = await resp.read()
