@@ -26,20 +26,17 @@ def account_device_info(entry: StadtbuechereiConfigEntry) -> DeviceInfo:
     )
 
 
-def _account_area_name(coordinator: StadtbuechereiCoordinator) -> str | None:
+def _account_area_name(
+    coordinator: StadtbuechereiCoordinator, account: dr.DeviceEntry | None
+) -> str | None:
     """Area of the account device, so newly borrowed media land in the same area.
 
     Home Assistant applies a suggested area only when it creates a device,
     so media the user has moved elsewhere stay where they are.
     """
-    hass = coordinator.hass
-    entry_id = coordinator.config_entry.entry_id
-    device = dr.async_get(hass).async_get_device_by_identifier(
-        (DOMAIN, entry_id), entry_id
-    )
-    if device is None or device.area_id is None:
+    if account is None or account.area_id is None:
         return None
-    area = ar.async_get(hass).async_get_area(device.area_id)
+    area = ar.async_get(coordinator.hass).async_get_area(account.area_id)
     return area.name if area else None
 
 
@@ -70,14 +67,18 @@ class LoanEntity(CoordinatorEntity[StadtbuechereiCoordinator]):
         self.copy_id = copy_id
         self._attr_translation_key = key
         self._attr_unique_id = f"{entry.entry_id}_{copy_id}_{key}"
+        # Created in async_setup_entry before the platforms, so it exists here.
+        account = dr.async_get(coordinator.hass).async_get_device_by_identifier(
+            (DOMAIN, entry.entry_id), entry.entry_id
+        )
         self._attr_device_info = DeviceInfo(
             identifiers={(DOMAIN, f"{entry.entry_id}_{copy_id}")},
             name=loan.title,
             manufacturer=loan.author,
             model=loan.media_group,
             configuration_url=loan.catalogue_url,
-            via_device=(DOMAIN, entry.entry_id),
-            suggested_area=_account_area_name(coordinator),
+            via_device_id=account.id if account else None,
+            suggested_area=_account_area_name(coordinator, account),
         )
 
     @property
