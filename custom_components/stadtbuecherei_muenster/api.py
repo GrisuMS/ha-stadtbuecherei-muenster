@@ -323,6 +323,7 @@ class StadtbuechereiClient:
         self._password = password
         self._lock = asyncio.Lock()
         self._patron_rnd_id: str | None = None
+        self._last_response = ""
 
     async def _get(self, path: str) -> BeautifulSoup:
         async with self._session.get(urljoin(BASE_URL, path)) as resp:
@@ -339,6 +340,14 @@ class StadtbuechereiClient:
             urljoin(BASE_URL, ACCOUNT_PATH), data=payload
         ) as resp:
             resp.raise_for_status()
+            self._last_response = "POST %s -> %s %s" % (
+                ACCOUNT_PATH,
+                " -> ".join(
+                    f"{r.status} {r.headers.get('Location', '')}" for r in resp.history
+                )
+                or "no redirect",
+                f"{resp.status} {resp.url.path}",
+            )
             return BeautifulSoup(await resp.text(), "html.parser")
 
     async def _login(self, login_page: BeautifulSoup) -> BeautifulSoup:
@@ -361,12 +370,29 @@ class StadtbuechereiClient:
             return soup
         if message := login_error(soup):
             raise AuthenticationError(message)
+        post_diag = self._diagnose(soup)
         # DNN may answer the login with another page; the session cookie decides.
         soup = await self._get(ACCOUNT_PATH)
         if is_logged_in(soup):
             return soup
+        raise LibraryError(
+            f"Not logged in after login. {self._last_response}; response: {post_diag}; "
+            f"account page afterwards: {self._diagnose(soup)}; "
+            f"cookies: {sorted(c.key for c in self._session.cookie_jar)}"
+        )
+
+    @staticmethod
+    def _diagnose(soup: BeautifulSoup) -> str:
+        """Describe a page for the log, without any form values."""
         title = soup.title.get_text(strip=True) if soup.title else "?"
-        raise LibraryError(f"Not logged in after login, got page '{title}'")
+        login_form = (
+            soup.find("input", attrs={"name": re.compile(r"Login.*\$txtPassword$")})
+            is not None
+        )
+        return (
+            f"title='{title}', login form={login_form}, "
+            f"messages={[m[:150] for m in _page_messages(soup)[:3]]}"
+        )
 
     async def _account_page(self) -> BeautifulSoup:
         """Return the account page, logging in first if the session expired."""

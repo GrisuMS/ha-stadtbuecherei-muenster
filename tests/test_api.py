@@ -115,3 +115,13 @@ def test_parse_reservations_and_fees():
 def test_empty_account_tables():
     assert api.parse_reservations(soup()) == []
     assert api.parse_fees(soup()) == []
+
+
+def test_diagnose_describes_page_without_values():
+    login = BeautifulSoup(
+        "<title>Kundenkonto</title>"
+        '<input name="dnn$ctr375$Login$Login_COP$txtPassword" type="password" value="geheim" />',
+        "html.parser",
+    )
+    text = api.StadtbuechereiClient._diagnose(login)
+    assert "login form=True" in text and "geheim" not in text
